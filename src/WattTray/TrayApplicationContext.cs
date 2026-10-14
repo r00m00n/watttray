@@ -58,7 +58,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         if (key == _currentPowerIconKey)
             return;
 
-        var replacement = CreatePowerIcon(label, state);
+        var replacement = CreatePowerIcon(label, GetAccent(reading));
         var previous = _currentPowerIcon;
         _notifyIcon.Icon = replacement;
         _currentPowerIcon = replacement;
@@ -70,7 +70,37 @@ internal sealed class TrayApplicationContext : ApplicationContext
         ? $"{watts / 1000:0.#}k"
         : Math.Round(watts).ToString("0", CultureInfo.InvariantCulture);
 
-    private static Icon CreatePowerIcon(string value, BatteryPowerState state)
+    private static Color GetAccent(BatteryReading? reading)
+    {
+        if (reading is null)
+            return Color.FromArgb(160, 168, 180);
+
+        return reading.State switch
+        {
+            BatteryPowerState.Discharging => Math.Round(reading.Watts) switch
+            {
+                <= 12 => Color.FromArgb(76, 217, 100),
+                <= 25 => Color.FromArgb(255, 159, 10),
+                _ => Color.FromArgb(255, 69, 58)
+            },
+            BatteryPowerState.Charging => Color.FromArgb(64, 200, 224),
+            BatteryPowerState.OnAc => Color.FromArgb(100, 170, 255),
+            _ => Color.FromArgb(160, 168, 180)
+        };
+    }
+
+    // Matches the Windows 11 taskbar clock font, with fallbacks for older systems.
+    private static FontFamily GetTrayFontFamily()
+    {
+        foreach (var name in new[] { "Segoe UI Variable Text Semibold", "Segoe UI Semibold", "Segoe UI" })
+        {
+            try { return new FontFamily(name); }
+            catch (ArgumentException) { }
+        }
+        return FontFamily.GenericSansSerif;
+    }
+
+    private static Icon CreatePowerIcon(string value, Color accent)
     {
         const int size = 32;
         using var bitmap = new Bitmap(size, size);
@@ -80,41 +110,26 @@ internal sealed class TrayApplicationContext : ApplicationContext
             graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
             graphics.Clear(Color.Transparent);
 
-            var accent = state switch
-            {
-                BatteryPowerState.Charging => Color.FromArgb(69, 210, 145),
-                BatteryPowerState.Discharging => Color.FromArgb(255, 177, 66),
-                BatteryPowerState.OnAc => Color.FromArgb(89, 170, 255),
-                _ => Color.FromArgb(145, 155, 170)
-            };
+            using var path = new GraphicsPath();
+            using var format = StringFormat.GenericTypographic;
+            using var family = GetTrayFontFamily();
+            path.AddString(value, family, (int)FontStyle.Regular, 100f, PointF.Empty, format);
 
-            using var unitFont = new Font("Segoe UI", 8f, FontStyle.Bold, GraphicsUnit.Pixel);
-            using var textBrush = new SolidBrush(Color.White);
-            using var shadowBrush = new SolidBrush(Color.FromArgb(210, 0, 0, 0));
-            using var unitBrush = new SolidBrush(accent);
-            var mainBounds = new RectangleF(0, -1, 32, 30);
-            var unitBounds = new RectangleF(23, 22, 9, 9);
-            using var centered = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
-            var mainSize = value.Length >= 3 ? 26f : value.Length == 2 ? 32f : 34f;
-            Font mainFont;
-            while (true)
-            {
-                mainFont = new Font("Segoe UI", mainSize, FontStyle.Bold, GraphicsUnit.Pixel);
-                var measured = graphics.MeasureString(value, mainFont, int.MaxValue, centered);
-                if (measured.Width <= 29 && measured.Height <= 28 || mainSize <= 10)
-                    break;
-                mainFont.Dispose();
-                mainSize -= 1;
-            }
-            using (mainFont)
-            {
-                graphics.DrawString(value, mainFont, shadowBrush, new RectangleF(1, 0, 32, 30), centered);
-                graphics.DrawString(value, mainFont, textBrush, mainBounds, centered);
-            }
-            if (value != "--")
-                graphics.DrawString("W", unitFont, unitBrush, unitBounds, centered);
+            // Scale glyphs to fill the icon, keeping aspect ratio.
+            var bounds = path.GetBounds();
+            const float maxWidth = 30f, maxHeight = 28f;
+            var scale = Math.Min(maxWidth / bounds.Width, maxHeight / bounds.Height);
+            using var matrix = new Matrix();
+            matrix.Translate(-bounds.X - bounds.Width / 2, -bounds.Y - bounds.Height / 2);
+            matrix.Scale(scale, scale, MatrixOrder.Append);
+            matrix.Translate(size / 2f, size / 2f, MatrixOrder.Append);
+            path.Transform(matrix);
+
+            using var outline = new Pen(Color.FromArgb(200, 15, 15, 20), 2.5f) { LineJoin = LineJoin.Round };
+            using var fill = new SolidBrush(accent);
+            graphics.DrawPath(outline, path);
+            graphics.FillPath(fill, path);
         }
-
         var iconHandle = bitmap.GetHicon();
         try
         {
