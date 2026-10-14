@@ -8,7 +8,7 @@ Keep the app tiny, dependency-free and Windows-native. The first milestone reads
 
 ## Stack
 
-- C# / .NET 8
+- C# / .NET 10
 - Windows Forms `NotifyIcon` for the system tray
 - SetupAPI to enumerate battery devices
 - `DeviceIoControl` with `IOCTL_BATTERY_QUERY_TAG` and `IOCTL_BATTERY_QUERY_STATUS`
