@@ -87,3 +87,16 @@ Kryterium gotowości: poprawny odczyt watów, gdy urządzenie udostępnia absolu
 - [BATTERY_INFORMATION i BATTERY_CAPACITY_RELATIVE](https://learn.microsoft.com/en-us/windows/win32/power/battery-information-str)
 - [BATTERY_STATUS: PowerState, Voltage i Rate](https://learn.microsoft.com/en-us/windows/win32/power/battery-status-str)
 - [SP_DEVICE_INTERFACE_DETAIL_DATA_W](https://learn.microsoft.com/en-us/windows/win32/api/setupapi/ns-setupapi-sp_device_interface_detail_data_w)
+
+## Implementation update (2026-10-14)
+
+The diagnostic implementation is now in `src/WattTray`:
+
+- SetupAPI device paths are read at byte offset 4 on both architectures; `cbSize` remains 8 on x64 and 6 on x86.
+- The reader reports enumeration, device path, handle open, query tag, query information, and query status results for every battery interface. Native failures include the Win32 code and message.
+- `BATTERY_INFORMATION` capabilities are queried before a rate is shown as watts. Relative, unknown, or unit-ambiguous rates remain unavailable and are explained in the report.
+- The tray tooltip also shows charge percentage from `BATTERY_STATUS.Capacity / BATTERY_INFORMATION.FullChargedCapacity`, including relative units where the ratio remains meaningful.
+- The tray icon now renders the rounded watt value itself, with a small `W` unit marker and a state-colored outline; the tooltip retains the precise one-decimal reading.
+- Right-click the tray icon and choose **Copy diagnostics** to copy the latest report.
+
+Local .NET 10 build succeeded with zero warnings using an alternate output directory because the normal `bin` output was locked by a running WattTray process. No hardware result has been collected on the ThinkPad P1; this change improves diagnosis and corrects a confirmed path-offset bug, but it does not establish the P1 driver's reported values. Collect the copied report on the P1 before claiming the watt reading is fixed or opening a PR.

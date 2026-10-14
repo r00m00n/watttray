@@ -13,7 +13,9 @@ Keep the app tiny, dependency-free and Windows-native. The first milestone reads
 - SetupAPI to enumerate battery devices
 - `DeviceIoControl` with `IOCTL_BATTERY_QUERY_TAG` and `IOCTL_BATTERY_QUERY_STATUS`
 
-`BATTERY_STATUS.Rate` is reported in milliwatts when the battery exposes absolute capacity units. Positive values mean charging and negative values mean discharging.
+`BATTERY_STATUS.Rate` is reported in milliwatts when the battery exposes absolute capacity units. Positive values mean charging and negative values mean discharging. WattTray checks `BATTERY_CAPACITY_RELATIVE` before converting a rate to watts and shows the battery charge percentage when capacity data is available.
+
+The tray icon displays a rounded watt value; its tooltip shows the precise reading, charge state, and battery percentage. Right-click the icon and choose **Copy diagnostics** to copy the latest per-battery SetupAPI and battery API report. It includes native error codes and response sizes to help diagnose unsupported or unavailable readings.
 
 ## Run
 

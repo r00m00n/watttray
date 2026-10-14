@@ -9,3 +9,5 @@ internal enum BatteryPowerState
 }
 
 internal sealed record BatteryReading(double Watts, int RateMilliwatts, BatteryPowerState State);
+
+internal sealed record BatteryReadResult(BatteryReading? Reading, double? BatteryPercentage, string Diagnostics);
